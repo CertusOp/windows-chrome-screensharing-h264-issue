@@ -5,7 +5,7 @@ const dataSources = ['screen']; // Can also include 'tab' and 'window'
  *
  * @enum {string}
  */
-const EXTENSION_MESSAGES = {
+const EVENT_NAMES = {
   REQUEST_SCREENSHARE: 'RequestScreenSharing',
   ON_REQUEST_FAILED: 'RequestScreenSharingFail',
   ON_EXTENSION_OK: 'RequestScreenSharingOk',
@@ -26,10 +26,10 @@ function requestScreenSharing(port, msg) {
     (streamId) => { // Callback
       const responseMessage = Object.assign({}, msg);
       if (streamId) {
-        responseMessage.type = EXTENSION_MESSAGES.ON_EXTENSION_OK;
+        responseMessage.type = EVENT_NAMES.ON_EXTENSION_OK;
         responseMessage.streamId = streamId;
       } else {
-        responseMessage.type = EXTENSION_MESSAGES.ON_REQUEST_FAILED;
+        responseMessage.type = EVENT_NAMES.ON_REQUEST_FAILED;
       }
 
       port.postMessage(responseMessage);
@@ -40,7 +40,7 @@ function requestScreenSharing(port, msg) {
 // Route events from webapp to the corresponding functions
 window.chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener((message) => {
-    if (message.type === EXTENSION_MESSAGES.REQUEST_SCREENSHARE) {
+    if (message.type === EVENT_NAMES.REQUEST_SCREENSHARE) {
       requestScreenSharing(port, message);
     }
   });

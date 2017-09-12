@@ -3,7 +3,7 @@
  *
  * @enum {string}
  */
-const EXTENSION_MESSAGES = {
+const EVENT_NAMES = {
   REQUEST_SCREENSHARE: 'RequestScreenSharing',
   ON_REQUEST_FAILED: 'RequestScreenSharingFail',
   ON_EXTENSION_OK: 'RequestScreenSharingOk',
@@ -21,8 +21,8 @@ window.addEventListener('message', (event) => {
   const { type } = event.data;
 
   if (
-    type === EXTENSION_MESSAGES.STOP_SCREENSHARE ||
-    type === EXTENSION_MESSAGES.REQUEST_SCREENSHARE
+    type === EVENT_NAMES.STOP_SCREENSHARE ||
+    type === EVENT_NAMES.REQUEST_SCREENSHARE
   ) {
     port.postMessage(event.data);
   }

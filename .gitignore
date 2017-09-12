@@ -1,9 +1,6 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-test/unit/coverage
-test/e2e/reports
-selenium-debug.log
 
 # Windows image file caches
 Thumbs.db
@@ -49,15 +46,8 @@ Temporary Items
 
 # NPM-generated files
 node_modules/*
-dist/*
-
-# Graphic files
-*.ai
-*.psd
 
 # Editor files
-*.sublime-project
-*.sublime-workspace
 .vscode/*
 
 *.log

@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <style>
+     /* For presentational purposes */
       html, body { height: 100%; }
 
       body {
@@ -19,25 +20,25 @@
 
     <script>
       /**
-       * Names of extension events.
+       * Names of extension events
        *
        * @enum {string}
        */
-      const EXTENSION_MESSAGES = {
+      const EVENT_NAMES = {
         REQUEST_SCREENSHARE: 'RequestScreenSharing',
         ON_REQUEST_FAILED: 'RequestScreenSharingFail',
         ON_EXTENSION_OK: 'RequestScreenSharingOk',
       };
 
       /**
-       * Send message to extension to request initiation of screenshare
+       * Send message to extension with request initiation of screenshare
        */
       function requestScreenShare() {
-        window.postMessage({ type: EXTENSION_MESSAGES.REQUEST_SCREENSHARE }, '*');
+        window.postMessage({ type: EVENT_NAMES.REQUEST_SCREENSHARE }, '*');
       }
 
       /**
-       * Handle messages from extension
+       * Handle incoming messages from extension
        */
       function onScreenShareExtensionMessages(event) {
         // Ignore messages from other domains
@@ -46,7 +47,7 @@
         const { type } = event.data;
 
         // Initiate screen-capture
-        if (type === EXTENSION_MESSAGES.ON_EXTENSION_OK) {
+        if (type === EVENT_NAMES.ON_EXTENSION_OK) {
           return new Promise((resolve, reject) => {
             navigator.webkitGetUserMedia({
               audio: false,
@@ -64,16 +65,16 @@
             .catch(console.error);
         }
 
-        if (type === EXTENSION_MESSAGES.ON_REQUEST_FAILED) {
+        if (type === EVENT_NAMES.ON_REQUEST_FAILED) {
           console.log('User cancelled screensharing!');
         }
       }
 
       function addEventListeners() {
+        // Listen for messages, and handle those posted by extension
         window.addEventListener('message', onScreenShareExtensionMessages);
-
-        const startScreenshareButton = document.getElementById('start-screenshare');
-        startScreenshareButton.addEventListener('click', requestScreenShare);
+        // Attach functionality to the "Start Screen Sharing" button
+        document.getElementById('start-screenshare').addEventListener('click', requestScreenShare);
       }
 
       addEventListeners();
