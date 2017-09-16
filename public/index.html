@@ -12,7 +12,6 @@
         display: flex;
         justify-content: center;
         align-items: center;
-        flex-direction: column;
       }
 
       section {
@@ -21,12 +20,16 @@
         padding: 1em;
       }
 
+      .flex-column {
+        flex-direction: column;
+      }
+
       video { display: none; }
       video[src] { display: block; }
     </style>
   </head>
 
-  <body>
+  <body class="flex-column">
     <section>
       <!-- Will be populated with the videostream of the sender -->
       <video id="video-playback" autoplay muted></video>
@@ -34,6 +37,21 @@
     <section>
       <input id="start-call-button" type="button" disabled value="Share Screen"/>
       <input id="end-call-button" type="button" disabled value="End Call"/>
+    </section>
+    <section class="flex-column">
+      <strong>Allowed Codecs</strong>
+      <div class="checkbox-row">
+        <input type="checkbox" id="checkbox-h264" value="h264" checked>
+        <label for="checkbox-h264">H264</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="checkbox-vp8" value="vp8" checked>
+        <label for="checkbox-vp8">VP8</label>
+      </div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="checkbox-vp9" value="vp9" checked>
+        <label for="checkbox-vp9">VP9</label>
+      </div>
     </section>
 
     <!-- SHIM to isolate browser from spec inconsistencies. -->
