@@ -26,6 +26,11 @@ let peerConn; // RTCPeerConnection
 const videoElement = document.getElementById('video-playback');
 const startCallButton = document.getElementById('start-call-button');
 const endCallButton = document.getElementById('end-call-button');
+const codecCheckboxContainer = document.getElementById('codec-checkbox-container');
+const codecCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+
+const availableVideoCodecs = Array.from(codecCheckboxes)
+  .map(checkbox => checkbox.value.toUpperCase());
 
 // Populated by the requsetScreenShare function
 let resolveScreenshareRequest = null;
@@ -103,6 +108,7 @@ function endCall() {
   peerConn = null;
   startCallButton.removeAttribute('disabled');
   endCallButton.setAttribute('disabled', true);
+  codecCheckboxContainer.style.display = 'block';
 
   if (localVideoStream) {
     localVideoStream
@@ -113,16 +119,121 @@ function endCall() {
   videoElement.src = '';
 }
 
+function filterSdpCodecs(sdpString) {
+  const fields = sdpString.split('\n');
+  const blacklistedCodecs = Array.from(codecCheckboxes)
+    .filter(checkbox => !checkbox.checked)
+    .map(checkbox => checkbox.value)
+    .map(codecName => codecName.toUpperCase());
+
+  const blacklistedCodecIds = [];
+
+  if (blacklistedCodecs.length === availableVideoCodecs.length) {
+    alert('Please select at least one codec');
+    throw new Error('No codecs were selected');
+  }
+
+  let isCodecAttr = false;
+  let currentCodec = null;
+  let ignoreField = false;
+
+  return fields
+    .reduce((acc, field) => {
+      const isRtpMapAttribute = field.startsWith('a=rtpmap:');
+      const isFmtpAttribute = field.startsWith('a=fmtp:');
+
+      if (isRtpMapAttribute) {
+        const codecName = field.trim().match(/^.* (.*)\/.*$/)[1];
+        if (codecName !== 'rtx') return acc.concat([field]); // If it's not rtx, move on.
+
+        const codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
+        blacklistedCodecIds.push(codecId);
+
+        return acc;
+      } else if (isFmtpAttribute) {
+        const codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
+        // If it's an media format description attribute, and it's concerned
+        // with a blacklisted codec, do not include it in the SDP.
+        if (blacklistedCodecIds.includes(codecId)) return acc;
+      }
+
+      return acc.concat([field]);
+    }, [])
+    // Use rtpmap and rtcp fields to filter out blacklisted codecs
+    .reduce((acc, field) => {
+      const isAttribute = field.startsWith('a=');
+      if (!isAttribute) return acc.concat([field]); // Skip any non-attr fields
+
+      const isRtpMapAttribute = field.startsWith('a=rtpmap:');
+      const isRtcpAttribute = field.startsWith('a=rtcp-fb:');
+
+      if (isRtpMapAttribute || isRtcpAttribute) {
+        isCodecAttr = true;
+      } else {
+        isCodecAttr = false;
+        ignoreField = false; // reset ignoreField
+      }
+
+      if (isCodecAttr) {
+        let codecId;
+        if (isRtpMapAttribute) {
+          const codecName = field.trim().match(/^.* (.*)\/.*$/)[1];
+          codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
+
+          currentCodec = codecName;
+        }
+
+        ignoreField = blacklistedCodecs.includes(currentCodec);
+
+        if (
+          ignoreField &&
+          isRtpMapAttribute &&
+          codecId
+        ) blacklistedCodecIds.push(codecId);
+
+        if (ignoreField) return acc;
+      }
+
+      return acc.concat([field]);
+    }, [])
+    .map((field) => {
+      const isMVideo = field.startsWith('m=video');
+      if (!isMVideo) return field;
+
+      return field
+        .split(' ')
+        .map((piece) => {
+          if (blacklistedCodecIds.includes(piece)) return null;
+
+          return piece;
+        }, [])
+        .filter(piece => piece !== null)
+        .join(' ');
+    })
+    .join('\n');
+}
+
 /**
  * Send offer SDP-message via WebSocket connection
  */
 function createAndSendOffer() {
   peerConn.createOffer(
     (offer) => {
-      const offerSdp = new RTCSessionDescription(offer);
+      const { sdp, type } = offer.toJSON();
+      console.log({
+        before: sdp,
+        after: filterSdpCodecs(sdp),
+      });
+
+
+      const modifiedSdp = {
+        type,
+        sdp: filterSdpCodecs(sdp),
+      };
+
       peerConn.setLocalDescription(
-        offerSdp,
-        () => { wsConn.send(JSON.stringify({ sdp: offerSdp })); },
+        offer,
+        () => { wsConn.send(JSON.stringify({ sdp: modifiedSdp })); },
         console.error
       );
     },
@@ -136,10 +247,9 @@ function createAndSendOffer() {
 function createAndSendAnswer() {
   peerConn.createAnswer(
     (answer) => {
-      const answerSdp = new RTCSessionDescription(answer);
       peerConn.setLocalDescription(
-        answerSdp,
-        () => { wsConn.send(JSON.stringify({ sdp: answerSdp })); },
+        answer,
+        () => { wsConn.send(JSON.stringify({ sdp: answer })); },
         console.error
       );
     },
@@ -167,6 +277,7 @@ function prepareCall() {
 
 function answerCall() {
   prepareCall();
+  codecCheckboxContainer.style.display = 'none';
   setTimeout(() => createAndSendAnswer(), 1000); // "hack" to avoid race-condition
 }
 
@@ -174,7 +285,7 @@ wsConn.onmessage = function onWsConnMessage(evt) {
   if (!peerConn) answerCall();
   const signal = JSON.parse(evt.data);
   if (signal.sdp) {
-    console.log('Received SDP from remote peer.');
+    console.log('Received SDP from remote peer.', signal.sdp);
     peerConn.setRemoteDescription(new RTCSessionDescription(signal.sdp));
   } else if (signal.candidate) {
     console.log('Received ICECandidate from remote peer.');
