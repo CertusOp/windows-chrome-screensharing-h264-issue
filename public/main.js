@@ -119,13 +119,17 @@ function endCall() {
   videoElement.src = '';
 }
 
-function filterSdpCodecs(sdpString) {
+/**
+ * Parses an SDP string to remove blacklisted codecs
+ *
+ * @param {string} sdpString
+ * @param {string[]} blacklistedCodecs
+ * @returns {string}
+ */
+function filterSdpCodecs(sdpString, _blacklistedCodecs) {
   const fields = sdpString.split('\n');
-  const blacklistedCodecs = Array.from(codecCheckboxes)
-    .filter(checkbox => !checkbox.checked)
-    .map(checkbox => checkbox.value)
-    .map(codecName => codecName.toUpperCase());
-
+  // Copy param to avoid reassign
+  const blacklistedCodecs = _blacklistedCodecs.map(str => str);
   const blacklistedCodecIds = [];
 
   if (blacklistedCodecs.length === availableVideoCodecs.length) {
@@ -144,15 +148,16 @@ function filterSdpCodecs(sdpString) {
 
       if (isRtpMapAttribute) {
         const codecName = field.trim().match(/^.* (.*)\/.*$/)[1];
-        if (codecName !== 'rtx') return acc.concat([field]); // If it's not rtx, move on.
-
+        // If it's not rtx, move on.
+        if (codecName !== 'rtx') return acc.concat([field]);
+        // If it is rtx, add the codecId to the list of codecIds to blacklist
         const codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
         blacklistedCodecIds.push(codecId);
-
+        // Remove rtx declaration from SDP
         return acc;
       } else if (isFmtpAttribute) {
         const codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
-        // If it's an media format description attribute, and it's concerned
+        // If it's an media format description attribute and it's concerned
         // with a blacklisted codec, do not include it in the SDP.
         if (blacklistedCodecIds.includes(codecId)) return acc;
       }
@@ -162,40 +167,43 @@ function filterSdpCodecs(sdpString) {
     // Use rtpmap and rtcp fields to filter out blacklisted codecs
     .reduce((acc, field) => {
       const isAttribute = field.startsWith('a=');
-      if (!isAttribute) return acc.concat([field]); // Skip any non-attr fields
+      // We're only concenred with attribute-fields
+      if (!isAttribute) return acc.concat([field]);
 
       const isRtpMapAttribute = field.startsWith('a=rtpmap:');
       const isRtcpAttribute = field.startsWith('a=rtcp-fb:');
 
+      // If it's a codec attribute, set flag to indicate that it is relevant
       if (isRtpMapAttribute || isRtcpAttribute) {
         isCodecAttr = true;
       } else {
+        // reset flags
         isCodecAttr = false;
-        ignoreField = false; // reset ignoreField
+        ignoreField = false;
       }
 
-      if (isCodecAttr) {
-        let codecId;
-        if (isRtpMapAttribute) {
-          const codecName = field.trim().match(/^.* (.*)\/.*$/)[1];
-          codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
+      if (!isCodecAttr) return acc.concat([field]);
 
-          currentCodec = codecName;
-        }
+      let codecId;
+      if (isRtpMapAttribute) {
+        const codecName = field.trim().match(/^.* (.*)\/.*$/)[1];
+        codecId = field.trim().match(/(?::)([0-9]*)(?=\s)/)[1];
 
-        ignoreField = blacklistedCodecs.includes(currentCodec);
-
-        if (
-          ignoreField &&
-          isRtpMapAttribute &&
-          codecId
-        ) blacklistedCodecIds.push(codecId);
-
-        if (ignoreField) return acc;
+        currentCodec = codecName;
       }
+      // Ignore if it's a field for a blacklisted codec
+      ignoreField = blacklistedCodecs.includes(currentCodec);
 
-      return acc.concat([field]);
+      if (!ignoreField) return acc.concat([field]);
+
+      // If it's a blacklisted rtpmap codec, record the corresponding codecid
+      if (isRtpMapAttribute && codecId) {
+        blacklistedCodecIds.push(codecId);
+      }
+      // Proceed without including field in SDP
+      return acc;
     }, [])
+    // Remove blacklisted codecs from m=video field
     .map((field) => {
       const isMVideo = field.startsWith('m=video');
       if (!isMVideo) return field;
@@ -220,15 +228,15 @@ function createAndSendOffer() {
   peerConn.createOffer(
     (offer) => {
       const { sdp, type } = offer.toJSON();
-      console.log({
-        before: sdp,
-        after: filterSdpCodecs(sdp),
-      });
 
+      const blacklistedCodecs = Array.from(codecCheckboxes)
+        .filter(checkbox => !checkbox.checked)
+        .map(checkbox => checkbox.value)
+        .map(codecName => codecName.toUpperCase());
 
       const modifiedSdp = {
         type,
-        sdp: filterSdpCodecs(sdp),
+        sdp: filterSdpCodecs(sdp, blacklistedCodecs),
       };
 
       peerConn.setLocalDescription(
