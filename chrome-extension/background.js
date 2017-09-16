@@ -1,4 +1,4 @@
-const dataSources = ['screen']; // Can also include 'tab' and 'window'
+const dataSources = ['screen', 'window'];
 
 /**
  * Names of extension events.
