@@ -27,11 +27,11 @@ const videoElement = document.getElementById('video-playback');
 const startCallButton = document.getElementById('start-call-button');
 const endCallButton = document.getElementById('end-call-button');
 
+// Populated by the requsetScreenShare function
 let resolveScreenshareRequest = null;
 let rejectScreenshareRequest = null;
 
-
-/*
+/**
  * Functions for requesting screenshare
  * ============================================================= */
 
@@ -91,8 +91,8 @@ function requestScreenShare() {
 // Listen for messages, and handle those posted by extension
 window.addEventListener('message', onScreenShareExtensionMessages);
 
-/*
- * Functions for WebRTC communcation
+/**
+ * Functions for WebRTC communication
  * ============================================================= */
 
 /**
@@ -167,7 +167,7 @@ function prepareCall() {
 
 function answerCall() {
   prepareCall();
-  setTimeout(() => createAndSendAnswer(), 1000);
+  setTimeout(() => createAndSendAnswer(), 1000); // "hack" to avoid race-condition
 }
 
 wsConn.onmessage = function onWsConnMessage(evt) {

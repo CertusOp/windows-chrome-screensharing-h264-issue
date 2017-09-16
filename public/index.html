@@ -28,6 +28,7 @@
 
   <body>
     <section>
+      <!-- Will be populated with the videostream of the sender -->
       <video id="video-playback" autoplay muted></video>
     </section>
     <section>
@@ -35,7 +36,8 @@
       <input id="end-call-button" type="button" disabled value="End Call"/>
     </section>
 
+    <!-- SHIM to isolate browser from spec inconsistencies. -->
     <script src="./adapter_no_edge_no_global.js"></script>
-    <script src="./webrtc.js"></script>
+    <script src="./main.js"></script>
   </body>
 </html>
