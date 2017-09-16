@@ -1,15 +1,16 @@
 {
-  "name": "chrome-screenshare-webrtc-test",
+  "name": "h264-encoding-issue-demo",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Composes a self-containing demo, reproducing the issue of poor performance of h264 encoding of screensharing ın Chrome on Windows.",
+  "main": "server.js",
+  "private": true,
   "scripts": {
-    "serve-frontend": "http-server ./frontend",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
-  "author": "",
-  "license": "ISC",
-  "devDependencies": {
-    "http-server": "^0.10.0"
+  "license": "MIT",
+  "author": "Wilhelm Wanecek",
+  "dependencies": {
+    "express": "^4.14.0",
+    "ws": "^1.1.4"
   }
 }
