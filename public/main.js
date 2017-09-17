@@ -27,10 +27,7 @@ const videoElement = document.getElementById('video-playback');
 const startCallButton = document.getElementById('start-call-button');
 const endCallButton = document.getElementById('end-call-button');
 const codecCheckboxContainer = document.getElementById('codec-checkbox-container');
-const codecCheckboxes = document.querySelectorAll('input[type="checkbox"]');
-
-const availableVideoCodecs = Array.from(codecCheckboxes)
-  .map(checkbox => checkbox.value.toUpperCase());
+const h264Checkbox = document.getElementById('checkbox-use-h264');
 
 // Populated by the requsetScreenShare function
 let resolveScreenshareRequest = null;
@@ -120,28 +117,51 @@ function endCall() {
 }
 
 /**
- * Parses an SDP string to remove blacklisted codecs
+ * Generate function to clear out blacklisted codecs from m=video field
+ *
+ * @param {string[]} blacklistedCodecIds
+ * @returns {function}
+ */
+function makeStripMVideoField(blacklistedCodecIds) {
+  /**
+   * @param {string} field
+   * @returns {string}
+   */
+  return (field) => {
+    const isMVideo = field.startsWith('m=video');
+    if (!isMVideo) return field;
+
+    return field
+      .split(' ')
+      .map((piece) => {
+        if (blacklistedCodecIds.includes(piece)) return null;
+
+        return piece;
+      })
+      .filter(piece => piece !== null)
+      .join(' ');
+  };
+}
+
+/**
+ * Parses an SDP string to remove offer about h264 codec
  *
  * @param {string} sdpString
- * @param {string[]} blacklistedCodecs
  * @returns {string}
  */
-function filterSdpCodecs(sdpString, _blacklistedCodecs) {
+function stripH264Codec(sdpString) {
   const fields = sdpString.split('\n');
   // Copy param to avoid reassign
-  const blacklistedCodecs = _blacklistedCodecs.map(str => str);
-  const blacklistedCodecIds = [];
-
-  if (blacklistedCodecs.length === availableVideoCodecs.length) {
-    alert('Please select at least one codec');
-    throw new Error('No codecs were selected');
-  }
+  const blacklistedCodecs = ['H264'];
+  const blacklistedCodecIds = ['100']; // id for h264
 
   let isCodecAttr = false;
   let currentCodec = null;
   let ignoreField = false;
 
   return fields
+    // Add related retransimission codecs to blacklist
+    // and remove related rtpmap-rtx + fmtp attributes
     .reduce((acc, field) => {
       const isRtpMapAttribute = field.startsWith('a=rtpmap:');
       const isFmtpAttribute = field.startsWith('a=fmtp:');
@@ -164,6 +184,9 @@ function filterSdpCodecs(sdpString, _blacklistedCodecs) {
 
       return acc.concat([field]);
     }, [])
+    // Strip m=video field of blacklisted codecs
+    .map(makeStripMVideoField(blacklistedCodecIds))
+
     // Use rtpmap and rtcp fields to filter out blacklisted codecs
     .reduce((acc, field) => {
       const isAttribute = field.startsWith('a=');
@@ -203,21 +226,6 @@ function filterSdpCodecs(sdpString, _blacklistedCodecs) {
       // Proceed without including field in SDP
       return acc;
     }, [])
-    // Remove blacklisted codecs from m=video field
-    .map((field) => {
-      const isMVideo = field.startsWith('m=video');
-      if (!isMVideo) return field;
-
-      return field
-        .split(' ')
-        .map((piece) => {
-          if (blacklistedCodecIds.includes(piece)) return null;
-
-          return piece;
-        }, [])
-        .filter(piece => piece !== null)
-        .join(' ');
-    })
     .join('\n');
 }
 
@@ -229,14 +237,11 @@ function createAndSendOffer() {
     (offer) => {
       const { sdp, type } = offer.toJSON();
 
-      const blacklistedCodecs = Array.from(codecCheckboxes)
-        .filter(checkbox => !checkbox.checked)
-        .map(checkbox => checkbox.value)
-        .map(codecName => codecName.toUpperCase());
-
       const modifiedSdp = {
         type,
-        sdp: filterSdpCodecs(sdp, blacklistedCodecs),
+        sdp: h264Checkbox.checked
+          ? sdp
+          : stripH264Codec(sdp),
       };
 
       peerConn.setLocalDescription(
