@@ -1,4 +1,4 @@
-# WebRTC Screenshare preformance reproduction
+# WebRTC Screenshare performance issue reproduction
 
 ## Preparation for replicating the issue
 
