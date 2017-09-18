@@ -149,11 +149,11 @@ function makeStripMVideoField(blacklistedCodecIds) {
  * @param {string} sdpString
  * @returns {string}
  */
-function stripH264Codec(sdpString) {
+function stripCodecs(sdpString, codecs) {
   const fields = sdpString.split('\n');
   // Copy param to avoid reassign
-  const blacklistedCodecs = ['H264'];
-  const blacklistedCodecIds = ['100']; // id for h264
+  const blacklistedCodecs = codecs;
+  const blacklistedCodecIds = [];
 
   let isCodecAttr = false;
   let currentCodec = null;
@@ -240,8 +240,8 @@ function createAndSendOffer() {
       const modifiedSdp = {
         type,
         sdp: h264Checkbox.checked
-          ? sdp
-          : stripH264Codec(sdp),
+          ? stripCodecs(sdp, ['VP8', 'VP9'])
+          : stripCodecs(sdp, ['H264']),
       };
 
       peerConn.setLocalDescription(
