@@ -152,7 +152,7 @@ function makeStripMVideoField(blacklistedCodecIds) {
 function stripCodecs(sdpString, codecs) {
   const fields = sdpString.split('\n');
   // Copy param to avoid reassign
-  const blacklistedCodecs = codecs;
+  const blacklistedCodecs = codecs.slice();
   const blacklistedCodecIds = [];
 
   let isCodecAttr = false;
