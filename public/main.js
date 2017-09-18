@@ -144,7 +144,7 @@ function makeStripMVideoField(blacklistedCodecIds) {
 }
 
 /**
- * Parses an SDP string to remove offer about h264 codec
+ * Parses an SDP string to remove offer about given codecs
  *
  * @param {string} sdpString
  * @returns {string}
@@ -241,7 +241,7 @@ function createAndSendOffer() {
         type,
         sdp: h264Checkbox.checked
           ? stripCodecs(sdp, ['VP8', 'VP9'])
-          : stripCodecs(sdp, ['H264']),
+          : sdp, //stripCodecs(sdp, ['H264']),
       };
 
       peerConn.setLocalDescription(
